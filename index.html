@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Five Crowns Scorekeeper</title>
+<style>
+    /* iOS Native Application Styling */
+    body { 
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+        background-color: #F2F2F7; 
+        padding: 20px; 
+        padding-top: 40px;
+        color: #1C1C1E;
+        -webkit-font-smoothing: antialiased;
+    }
+    .card { 
+        background: #FFFFFF; 
+        border-radius: 14px; 
+        padding: 20px; 
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+        margin-bottom: 20px; 
+    }
+    h2 { 
+        margin-top: 0; 
+        font-size: 22px; 
+        font-weight: 700;
+        letter-spacing: -0.5px;
+    }
+    input[type="text"] { 
+        width: 100%; 
+        padding: 14px; 
+        border: 1px solid #C7C7CC; 
+        border-radius: 10px; 
+        font-size: 16px; 
+        box-sizing: border-box; 
+        background: #FFFFFF;
+    }
+    input[type="number"] { 
+        width: 75px; 
+        padding: 10px; 
+        border: 1px solid #C7C7CC; 
+        border-radius: 8px; 
+        font-size: 16px; 
+        text-align: center; 
+        box-sizing: border-box; 
+    }
+    button { 
+        background: #007AFF; 
+        color: #FFFFFF; 
+        border: none; 
+        padding: 16px; 
+        border-radius: 10px; 
+        font-size: 16px; 
+        font-weight: 600; 
+        width: 100%; 
+        margin-top: 10px; 
+        cursor: pointer; 
+        transition: background 0.2s;
+    }
+    button:active {
+        background: #0056B3;
+    }
+    .row { 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        padding: 12px 0; 
+        border-bottom: 1px solid #E5E5EA; 
+    }
+    .player-name { 
+        font-weight: 600; 
+        font-size: 17px; 
+    }
+    .total-preview { 
+        font-weight: 700; 
+        color: #007AFF; 
+        width: 50px; 
+        text-align: right; 
+    }
+    .wild-banner { 
+        background: #FF3B30; 
+        color: #FFFFFF; 
+        padding: 14px; 
+        border-radius: 10px; 
+        text-align: center; 
+        font-weight: 700; 
+        margin-bottom: 20px; 
+        font-size: 18px; 
+        letter-spacing: -0.3px;
+    }
+    table { 
+        width: 100%; 
+        border-collapse: collapse; 
+        margin-top: 20px; 
+        background: #FFFFFF; 
+    }
+    th, td { 
+        border: 1px solid #D1D1D6; 
+        padding: 10px; 
+        text-align: center; 
+        font-size: 13px; 
+    }
+    th { 
+        background: #F2F2F7; 
+        font-weight: 600;
+    }
+    .winner { 
+        color: #34C759; 
+        font-weight: 700; 
+    }
+</style>
+</head>
+<body>
+
+<!-- VIEW 1: PLAYER SETUP -->
+<div id="setupView" class="card">
+    <h2>Add Players</h2>
+    <input type="text" id="pName" placeholder="Player Name..." onkeydown="if(event.key==='Enter')addPlayer()">
+    <button onclick="addPlayer()">Add Player</button>
+    <div id="pList" style="margin: 20px 0; font-size: 17px; line-height: 2.2;"></div>
+    <button onclick="startGame()" id="startBtn" style="background:#34C759; display:none;">Start Tournament</button>
+</div>
+
+<!-- VIEW 2: ROUND SCORE ENTRY -->
+<div id="gameView" style="display:none;">
+    <div class="card">
+        <div id="wildBanner" class="wild-banner">3s are WILD</div>
+        <div id="entryRows"></div>
+        <button onclick="submitRound()">Submit Round Scores</button>
+    </div>
+</div>
+
+<!-- VIEW 3: TOURNAMENT SUMMARY LEDGER -->
+<div id="resultsView" style="display:none;">
+    <div class="card">
+        <h2>Tournament Summary</h2>
+        <div style="overflow-x:auto;"><table id="ledgerTable"></table></div>
+        <button onclick="resetTournament()" style="background:#8E8E93; margin-top:25px;">New Tournament</button>
+    </div>
+</div>
+
+<script>
+    // System Data Matrices
+    var players = [];
+    var currentRoundIdx = 0;
+    var rounds = ["3s", "4s", "5s", "6s", "7s", "8s", "9s", "10s", "Jacks", "Queens", "Kings"];
+
+    function addPlayer() {
+        var input = document.getElementById('pName');
+        var name = input.value.trim();
+        if(name !== "") {
+            players.push({ name: name, scores: [], total: 0 });
+            input.value = "";
+            renderSetupList();
+        }
+    }
+
+    function renderSetupList() {
+        var html = "";
+        for(var i=0; i<players.length; i++) {
+            html += "<div style='border-bottom: 1px solid #E5E5EA; padding: 6px 0;'>👤 " + players[i].name + "</div>";
+        }
+        document.getElementById('pList').innerHTML = html;
+        if(players.length >= 2) {
+            document.getElementById('startBtn').style.display = "block";
+        }
+    }
+
+    function startGame() {
+        document.getElementById('setupView').style.display = "none";
+        document.getElementById('gameView').style.display = "block";
+        buildRoundInterface();
+    }
+
+    function buildRoundInterface() {
+        document.getElementById('wildBanner').innerText = rounds[currentRoundIdx] + " are WILD";
+        var html = "";
+        for(var i=0; i<players.length; i++) {
+            var p = players[i];
+            html += "<div class='row'>" +
+                        "<div class='player-name'>" + p.name + "<br><small style='color:#8E8E93; font-weight:normal;'>Score: " + p.total + "</small></div>" +
+                        "<input type='number' id='scoreInput-" + i + "' placeholder='0' oninput='calculateRealtimeTotal(" + i + ")' pattern='[0-9]*' inputmode='numeric'>" +
+                        "<div class='total-preview' id='preview-" + i + "'>" + p.total + "</div>" +
+                    "</div>";
+        }
+        document.getElementById('entryRows').innerHTML = html;
+        window.scrollTo(0,0);
+    }
+
+    function calculateRealtimeTotal(index) {
+        var enteredValue = parseInt(document.getElementById('scoreInput-' + index).value) || 0;
+        document.getElementById('preview-' + index).innerText = players[index].total + enteredValue;
+    }
+
+    function submitRound() {
+        for(var i=0; i<players.length; i++) {
+            var enteredValue = parseInt(document.getElementById('scoreInput-' + i).value) || 0;
+            players[i].scores.push(enteredValue);
+            players[i].total += enteredValue;
+        }
+        currentRoundIdx++;
+        if(currentRoundIdx < 11) {
+            buildRoundInterface();
+        } else {
+            displayFinalLedger();
+        }
+    }
+
+    function displayFinalLedger() {
+        document.getElementById('gameView').style.display = "none";
+        document.getElementById('resultsView').style.display = "block";
+        
+        var table = document.getElementById('ledgerTable');
+        var headHtml = "<tr><th>Round</th>";
+        for(var p=0; p<players.length; p++) { headHtml += "<th>" + players[p].name + "</th>"; }
+        headHtml += "</tr>";
+
+        var bodyHtml = "";
+        for(var r=0; r<11; r++) {
+            bodyHtml += "<tr><td><b>" + rounds[r] + "</b></td>";
+            for(var p=0; p<players.length; p++) {
+                bodyHtml += "<td>" + (players[p].scores[r] !== undefined ? players[p].scores[r] : 0) + "</td>";
+            }
+            bodyHtml += "</tr>";
+        }
+
+        // Determine Auditor Winning Parameters (Lowest Score Wins)
+        var lowestScore = 99999;
+        for(var p=0; p<players.length; p++) { if(players[p].total < lowestScore) lowestScore = players[p].total; }
+
+        var totalHtml = "<tr style='background:#E5E5EA; font-weight:bold;'><td>TOTAL</td>";
+        for(var p=0; p<players.length; p++) {
+            var isWinner = players[p].total === lowestScore;
+            totalHtml += "<td class='" + (isWinner ? "winner" : "") + "'>" + players[p].total + (isWinner ? " 🏆" : "") + "</td>";
+        }
+        totalHtml += "</tr>";
+
+        table.innerHTML = headHtml + bodyHtml + totalHtml;
+        window.scrollTo(0,0);
+    }
+
+    function resetTournament() {
+        players = [];
+        currentRoundIdx = 0;
+        document.getElementById('pList').innerHTML = "";
+        document.getElementById('startBtn').style.display = "none";
+        document.getElementById('resultsView').style.display = "none";
+        document.getElementById('setupView').style.display = "block";
+        window.scrollTo(0,0);
+    }
+</script>
+</body>
+</html>
